@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScriptGen AI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel for compiling JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Custom Styles that were in App.jsx */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.2); border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.4); }
+        .custom-audio::-webkit-media-controls-panel { background-color: rgba(30, 41, 59, 0.8); }
+        .custom-audio::-webkit-media-controls-current-time-display,
+        .custom-audio::-webkit-media-controls-time-remaining-display { color: #cbd5e1; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            background-color: #020617; /* slate-950 */
+            color: #f8fafc; /* slate-50 */
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // --- Mocking Lucide React Icons ---
+        // We'll use inline SVGs to replace the Lucide React components
+        // since we can't directly import them via ES modules in this setup easily without a bundler.
+        
+        const IconWrapper = ({ children, className = "", size = 24, ...props }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={className} 
+                {...props}
+            >
+                {children}
+            </svg>
+        );
+
+        const Icons = {
+            UploadCloud: (props) => <IconWrapper {...props}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></IconWrapper>,
+            X: (props) => <IconWrapper {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconWrapper>,
+            Zap: (props) => <IconWrapper {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconWrapper>,
+            ChevronRight: (props) => <IconWrapper {...props}><path d="m9 18 6-6-6-6"/></IconWrapper>,
+            Wand2: (props) => <IconWrapper {...props}><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></IconWrapper>,
+            Loader2: (props) => <IconWrapper {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></IconWrapper>,
+            ImageIcon: (props) => <IconWrapper {...props}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></IconWrapper>,
+            Play: (props) => <IconWrapper {...props}><polygon points="5 3 19 12 5 21 5 3"/></IconWrapper>,
+            Copy: (props) => <IconWrapper {...props}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></IconWrapper>,
+            CheckCircle2: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></IconWrapper>,
+            Sparkles: (props) => <IconWrapper {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></IconWrapper>,
+            RefreshCw: (props) => <IconWrapper {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></IconWrapper>,
+            Video: (props) => <IconWrapper {...props}><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></IconWrapper>,
+            Target: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></IconWrapper>,
+            Clock: (props) => <IconWrapper {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></IconWrapper>,
+            LayoutTemplate: (props) => <IconWrapper {...props}><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="9" height="7" x="3" y="14" rx="1"/><rect width="5" height="7" x="16" y="14" rx="1"/></IconWrapper>,
+            Volume2: (props) => <IconWrapper {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></IconWrapper>,
+            Download: (props) => <IconWrapper {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconWrapper>
+        };
+
+        const { 
+          UploadCloud, X, Zap, ChevronRight, Wand2, Loader2, ImageIcon, Play, Copy, 
+          CheckCircle2, Sparkles, RefreshCw, Video, Target, Clock, LayoutTemplate, Volume2, Download 
+        } = Icons;
+
+        const CONSTANTS = {
+          STYLES: ['Soft Selling', 'Hard Selling', 'Storytelling', 'Funny', 'Emotional', 'Gen Z', 'Luxury', 'Problem Solving'],
+          FORMATS: ['Hook -> CTA', 'Hook -> Isi -> CTA', 'Hook -> Masalah -> Solusi -> CTA', 'Storytelling', 'POV', 'Review', 'Before After'],
+          HOOKS: ['Hook Penasaran', 'Hook Emosional', 'Hook FOMO', 'Hook Problem Audience', 'Hook Viral TikTok', 'Negative Hook'],
+          DURATIONS: ['15', '30', '45', '60'],
+          AUDIENCES: ['Remaja', 'Mahasiswa', 'Pekerja', 'Ibu Rumah Tangga', 'Affiliate Creator', 'Semua Orang', 'General'],
+          PLATFORMS: ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Facebook Reels'],
+        };
+
+        // Simulated API Key environment variable for this platform
+        const API_KEY = ""; 
+
+        // Simple Markdown Parser for Script Output formatting
+        const parseMarkdown = (text) => {
+          let html = text
+            .replace(/\[BAGIAN\]\s*(.*?)$/gim, '<div class="mt-8 mb-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-500/20 text-emerald-400 font-extrabold text-[11px] border border-emerald-500/30 uppercase tracking-widest shadow-sm w-full border-l-4 border-l-emerald-500">📑 STRUKTUR: $1</div>')
+            .replace(/\[SCENE\]\s*(.*?)$/gim, '<div class="mt-2 mb-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-purple-500/20 text-purple-400 font-bold text-xs border border-purple-500/30 uppercase tracking-wider shadow-sm">⏱️ $1</div>')
+            .replace(/\[VISUAL\]\s*(.*?)$/gim, '<div class="pl-4 border-l-2 border-pink-500/60 my-1 py-1"><span class="text-pink-400 text-[10px] font-bold uppercase tracking-wider block mb-0.5">🎥 VISUAL DIRECTION</span><span class="text-slate-300 text-sm block leading-relaxed">$1</span></div>')
+            .replace(/\[NARASI\]\s*(.*?)$/gim, '<div class="pl-4 border-l-2 border-blue-500/60 my-1 py-1"><span class="text-blue-400 text-[10px] font-bold uppercase tracking-wider block mb-0.5">🗣️ VOICE OVER / NARASI</span><span class="text-white block text-base font-medium italic leading-relaxed">$1</span></div>')
+            .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-purple-400 mt-6 mb-2">$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold text-fuchsia-400 mt-8 mb-3">$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mt-4 mb-4">$1</h1>')
+            .replace(/\*\*(.*?)\*\*/gim, '<strong class="text-white font-semibold">$1</strong>')
+            .replace(/\*(.*?)\*/gim, '<em class="text-slate-300 italic">$1</em>')
+            .replace(/\n/gim, '<br/>');
+          return `<div class="mb-4 leading-relaxed text-slate-300">${html}</div>`;
+        };
+
+        // Helper function to decode base64 to ArrayBuffer for audio processing
+        const base64ToArrayBuffer = (base64) => {
+          const binaryString = window.atob(base64);
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          return bytes.buffer;
+        };
+
+        // Helper function to convert raw PCM16 audio data to playable WAV format
+        const pcmToWav = (pcmData, sampleRate = 24000) => {
+          const numChannels = 1; // Mono
+          const bitsPerSample = 16;
+          const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+          const blockAlign = (numChannels * bitsPerSample) / 8;
+          const dataSize = pcmData.length * 2; // 16-bit = 2 bytes per sample
+          const buffer = new ArrayBuffer(44 + dataSize);
+          const view = new DataView(buffer);
+
+          const writeString = (view, offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+              view.setUint8(offset + i, string.charCodeAt(i));
+            }
+          };
+
+          writeString(view, 0, 'RIFF');
+          view.setUint32(4, 36 + dataSize, true);
+          writeString(view, 8, 'WAVE');
+          writeString(view, 12, 'fmt ');
+          view.setUint32(16, 16, true);
+          view.setUint16(20, 1, true); // PCM
+          view.setUint16(22, numChannels, true);
+          view.setUint32(24, sampleRate, true);
+          view.setUint32(28, byteRate, true);
+          view.setUint16(32, blockAlign, true);
+          view.setUint16(34, bitsPerSample, true);
+          writeString(view, 36, 'data');
+          view.setUint32(40, dataSize, true);
+
+          let offset = 44;
+          for (let i = 0; i < pcmData.length; i++, offset += 2) {
+            view.setInt16(offset, pcmData[i], true);
+          }
+
+          return new Blob([view], { type: 'audio/wav' });
+        };
+
+        // Reusable UI Components styled like Shadcn with Premium Dark/Neon aesthetic
+        const Button = ({ children, variant = 'primary', className = '', isLoading, icon: Icon, type = 'button', size = 'md', ...props }) => {
+          const baseStyle = "inline-flex items-center justify-center rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 disabled:pointer-events-none disabled:opacity-50 active:scale-95 cursor-pointer";
+          const variants = {
+            primary: "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:shadow-[0_0_30px_rgba(168,85,247,0.6)] hover:from-purple-500 hover:to-pink-500",
+            secondary: "bg-slate-800/50 text-slate-200 border border-slate-700 hover:bg-slate-800 hover:text-white backdrop-blur-sm",
+            ghost: "text-slate-400 hover:text-white hover:bg-slate-800/50",
+          };
+          const sizes = {
+              sm: "h-9 px-4 py-1.5 text-xs",
+              md: "h-11 px-6 py-2 text-sm",
+              lg: "h-14 px-8 py-3 text-base"
+          };
+          
+          const sizeClass = sizes[size] || sizes.md;
+
+          return (
+            <button type={type} className={`${baseStyle} ${variants[variant]} ${sizeClass} ${className}`} disabled={isLoading} {...props}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : Icon ? <Icon className="mr-2 h-4 w-4" /> : null}
+              {children}
+            </button>
+          );
+        };
+
+        const Input = ({ label, error, className = '', ...props }) => (
+          <div className={`space-y-2 ${className}`}>
+            {label && <label className="text-sm font-medium text-slate-300">{label}</label>}
+            <input 
+              className="flex h-11 w-full rounded-xl border border-slate-700/50 bg-slate-900/50 px-3 py-2 text-sm text-slate-100 ring-offset-slate-950 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:border-transparent transition-all backdrop-blur-sm"
+              {...props}
+            />
+            {error && <p className="text-xs text-red-400">{error}</p>}
+          </div>
+        );
+
+        const Textarea = ({ label, error, className = '', ...props }) => (
+          <div className={`space-y-2 ${className}`}>
+            {label && <label className="text-sm font-medium text-slate-300">{label}</label>}
+            <textarea 
+              className="flex min-h-[100px] w-full rounded-xl border border-slate-700/50 bg-slate-900/50 px-3 py-2 text-sm text-slate-100 ring-offset-slate-950 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:border-transparent transition-all backdrop-blur-sm resize-y"
+              {...props}
+            />
+            {error && <p className="text-xs text-red-400">{error}</p>}
+          </div>
+        );
+
+        const Select = ({ label, name, options, value, onChange, className = '' }) => (
+          <div className={`space-y-2 ${className}`}>
+            {label && <label className="text-sm font-medium text-slate-300">{label}</label>}
+            <select
+              name={name}
+              value={value}
+              onChange={onChange}
+              className="flex h-11 w-full items-center justify-between rounded-xl border border-slate-700/50 bg-slate-900/50 px-3 py-2 text-sm text-slate-100 ring-offset-slate-950 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all backdrop-blur-sm appearance-none cursor-pointer"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
+            >
+              <option value="" disabled>Pilih opsi...</option>
+              {options.map((opt) => (
+                <option key={opt} value={opt} className="bg-slate-900 text-slate-100">{opt}</option>
+              ))}
+            </select>
+          </div>
+        );
+
+        const ImageUploader = ({ image, setImage, error }) => {
+          const [isDragging, setIsDragging] = useState(false);
+          const fileInputRef = useRef(null);
+
+          const handleFile = (file) => {
+            if (file && file.type.startsWith('image/')) {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                setImage({
+                  url: reader.result,
+                  file: file,
+                  mimeType: file.type
+                });
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const onDragOver = (e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          };
+
+          const onDragLeave = () => setIsDragging(false);
+
+          const onDrop = (e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+              handleFile(e.dataTransfer.files[0]);
+            }
+          };
+
+          return (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                <ImageIcon size={16} className="text-purple-400" />
+                Foto Produk Utama <span className="text-red-400">*</span>
+              </label>
+              
+              {!image ? (
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  onDrop={onDrop}
+                  className={`relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 ease-in-out bg-slate-900/30 overflow-hidden group
+                    ${isDragging ? 'border-purple-500 bg-purple-500/10 scale-[1.02]' : 'border-slate-700 hover:border-purple-500/50 hover:bg-slate-800/50'}
+                    ${error ? 'border-red-500 bg-red-500/10' : ''}
+                  `}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <UploadCloud className={`w-10 h-10 mb-3 transition-colors ${isDragging ? 'text-purple-400' : 'text-slate-500 group-hover:text-purple-400'}`} />
+                  <p className="mb-2 text-sm text-slate-300 font-medium">
+                    <span className="text-purple-400 font-semibold">Klik untuk unggah</span> atau seret & lepas
+                  </p>
+                  <p className="text-xs text-slate-500">JPG, PNG, WEBP (Maks 5MB)</p>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={(e) => handleFile(e.target.files?.[0])} 
+                    className="hidden" 
+                    accept="image/jpeg, image/png, image/webp"
+                  />
+                </div>
+              ) : (
+                <div className="relative w-full h-48 rounded-2xl overflow-hidden group border border-slate-700/50 bg-slate-900/50">
+                  <img src={image.url} alt="Preview" className="w-full h-full object-contain" />
+                  <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
+                     <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+                       Ganti
+                     </Button>
+                     <Button variant="secondary" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-400/10" onClick={(e) => { e.stopPropagation(); setImage(null); }}>
+                       Hapus
+                     </Button>
+                  </div>
+                   <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={(e) => handleFile(e.target.files?.[0])} 
+                    className="hidden" 
+                    accept="image/jpeg, image/png, image/webp"
+                  />
+                </div>
+              )}
+              {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+            </div>
+          );
+        };
+
+        const useTypewriter = (text, speed = 10) => {
+          const [displayedText, setDisplayedText] = useState("");
+          const [isTyping, setIsTyping] = useState(false);
+
+          useEffect(() => {
+            if (!text) {
+              setDisplayedText("");
+              return;
+            }
+
+            setIsTyping(true);
+            setDisplayedText("");
+            
+            let i = 0;
+            const timer = setInterval(() => {
+              if (i < text.length) {
+                setDisplayedText((prev) => prev + text.charAt(i));
+                i++;
+              } else {
+                clearInterval(timer);
+                setIsTyping(false);
+              }
+            }, speed);
+
+            return () => clearInterval(timer);
+          }, [text, speed]);
+
+          return { displayedText, isTyping };
+        };
+
+        const GeneratorView = ({ onBack }) => {
+          // Form State
+          const [image, setImage] = useState(null);
+          const [formData, setFormData] = useState({
+            name: '',
+            description: '',
+            style: 'Hard Selling',
+            format: 'Hook -> Isi -> CTA',
+            hookType: 'Hook Viral TikTok',
+            duration: '30',
+            audience: 'Remaja',
+            platform: 'TikTok'
+          });
+          const [errors, setErrors] = useState({});
+          const [customDetectPrompt, setCustomDetectPrompt] = useState('');
+          const [isAutoDetecting, setIsAutoDetecting] = useState(false);
+          
+          // Output State
+          const [isGenerating, setIsGenerating] = useState(false);
+          const [scriptResult, setScriptResult] = useState("");
+          const [usedConfig, setUsedConfig] = useState(null);
+          const [isCopied, setIsCopied] = useState(false);
+          const [toastMessage, setToastMessage] = useState(null);
+          
+          // Audio State
+          const [isAudioGenerating, setIsAudioGenerating] = useState(false);
+          const [audioUrl, setAudioUrl] = useState(null);
+          
+          const [isCaptionCopied, setIsCaptionCopied] = useState(false);
+
+          // Parse Metadata from Script
+          const rawScript = scriptResult || "";
+          const captionMatch = rawScript.match(/\[CAPTION\]\s*([\s\S]*?)(?=\[HASHTAGS\]|$)/i);
+          const hashtagsMatch = rawScript.match(/\[HASHTAGS\]\s*([\s\S]*?)$/i);
+          
+          const captionText = captionMatch ? captionMatch[1].trim() : '';
+          const hashtagsText = hashtagsMatch ? hashtagsMatch[1].trim() : '';
+          const mainScriptText = rawScript.replace(/\[CAPTION\][\s\S]*/i, '').trim();
+
+          const { displayedText, isTyping } = useTypewriter(mainScriptText, 5);
+
+          const showToast = (msg) => {
+            setToastMessage(msg);
+            setTimeout(() => setToastMessage(null), 3000);
+          };
+
+          const handleInputChange = (e) => {
+            const { name, value } = e.target;
+            setFormData(prev => ({ ...prev, [name]: value }));
+            if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
+          };
+
+          const validateForm = () => {
+            const newErrors = {};
+            if (!image) {
+              newErrors.image = "Foto produk wajib diunggah agar AI bisa menganalisis.";
+              showToast("⚠️ Gambar produk wajib diunggah!");
+            }
+            if (!formData.name.trim()) {
+              newErrors.name = "Nama produk wajib diisi.";
+              if (!newErrors.image) showToast("⚠️ Nama produk wajib diisi!");
+            }
+            if (!formData.description.trim()) {
+              newErrors.description = "Deskripsi produk wajib diisi untuk konteks tambahan.";
+              if (!newErrors.image && !newErrors.name) showToast("⚠️ Deskripsi produk wajib diisi!");
+            }
+            
+            setErrors(newErrors);
+            return Object.keys(newErrors).length === 0;
+          };
+
+          const handleAutoDetect = async () => {
+            if (!image) {
+              showToast("⚠️ Silakan unggah foto produk terlebih dahulu!");
+              return;
+            }
+
+            setIsAutoDetecting(true);
+            try {
+              let basePrompt = `Analisis gambar produk ini secara detail. Jawab HANYA menggunakan JSON valid dengan format persis seperti ini:
+              {
+                "name": "Nama Produk (Singkat & Jelas)",
+                "description": "Deskripsi lengkap produk, sebutkan fitur utama, warna, bentuk, atau kegunaannya yang terlihat"
+              }
+              Jangan tambahkan teks lain selain format JSON tersebut.`;
+
+              if (customDetectPrompt.trim() !== '') {
+                basePrompt += `\n\nINSTRUKSI TAMBAHAN DARI USER:\n${customDetectPrompt}`;
+              }
+
+              const base64Data = image.url.split(',')[1];
+              const mimeType = image.mimeType;
+
+              const payload = {
+                contents: [
+                  {
+                    role: "user",
+                    parts: [
+                      { text: basePrompt },
+                      {
+                        inlineData: {
+                          mimeType: mimeType,
+                          data: base64Data
+                        }
+                      }
+                    ]
+                  }
+                ]
+              };
+
+              const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+              if (!response.ok) throw new Error("Gagal melakukan auto-detect.");
+
+              const result = await response.json();
+              const textResponse = result.candidates[0].content.parts[0].text;
+              
+              // Membersihkan format markdown jika ada sebelum parse JSON
+              const cleanedText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+              const parsedData = JSON.parse(cleanedText);
+
+              setFormData(prev => ({
+                ...prev,
+                name: parsedData.name || prev.name,
+                description: parsedData.description || prev.description
+              }));
+              
+              showToast("✅ Berhasil mendeteksi informasi produk!");
+              setErrors(prev => ({ ...prev, name: null, description: null }));
+
+            } catch (error) {
+              console.error("Auto-detect error:", error);
+              showToast("❌ Gagal mendeteksi otomatis. Pastikan gambar jelas atau isi manual.");
+            } finally {
+              setIsAutoDetecting(false);
+            }
+          };
+
+          // Mengambil hanya teks setelah [NARASI] untuk diproses TTS AI (Mentolerir format dengan atau tanpa tanda kutip)
+          const extractNarasiText = (text) => {
+            const safeMatches = [...text.matchAll(/\[NARASI\](.*?)(\n|$)/gim)];
+            return safeMatches.map(m => m[1].replace(/["*]/g, '').trim()).join("... ");
+          };
+
+          // Generate TTS Voice Over menggunakan Gemini 2.5 TTS (Kore Voice)
+          const generateVoiceOver = async (textToSpeak) => {
+            if (!textToSpeak || textToSpeak.trim() === "") return;
+            
+            setIsAudioGenerating(true);
+            setAudioUrl(null);
+            try {
+              const payload = {
+                contents: [{ parts: [{ text: textToSpeak }] }],
+                generationConfig: {
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: "Kore" } // Suara tegas/Kore
+                    }
+                  }
+                },
+                model: "gemini-2.5-flash-preview-tts"
+              };
+
+              const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+              if (!response.ok) throw new Error("Gagal membuat audio");
+
+              const result = await response.json();
+              const part = result?.candidates?.[0]?.content?.parts?.[0];
+              const audioData = part?.inlineData?.data;
+              const mimeType = part?.inlineData?.mimeType || "audio/L16;rate=24000";
+
+              if (audioData) {
+                let sampleRate = 24000;
+                const rateMatch = mimeType.match(/rate=(\d+)/);
+                if (rateMatch) sampleRate = parseInt(rateMatch[1], 10);
+
+                const pcmBuffer = base64ToArrayBuffer(audioData);
+                const pcm16 = new Int16Array(pcmBuffer);
+                const wavBlob = pcmToWav(pcm16, sampleRate);
+                const url = URL.createObjectURL(wavBlob);
+                setAudioUrl(url);
+              }
+            } catch (error) {
+              console.error("TTS Error:", error);
+              showToast("⚠️ Gagal membuat voice over otomatis. Model mungkin belum tersedia.");
+            } finally {
+              setIsAudioGenerating(false);
+            }
+          };
+
+          const generateScript = async () => {
+            if (!validateForm()) return;
+
+            setIsGenerating(true);
+            setScriptResult("");
+            setAudioUrl(null);
+            setErrors({});
+            setUsedConfig({ ...formData });
+
+            console.log("API route called");
+
+            try {
+              const maxWords = Math.floor(parseInt(formData.duration) * 2.5); // Estimasi 2.5 kata per detik
+
+              // Instruksi spesifik berdasarkan Tipe Hook
+              const hookInstructions = {
+                'Hook Penasaran': 'Buat opening (1-3 detik pertama) yang sangat memancing rasa penasaran, gunakan pertanyaan menggantung atau fakta mengejutkan yang bikin audiens HARUS menonton sampai akhir.',
+                'Hook Emosional': 'Buat opening (1-3 detik pertama) yang menyentuh emosi, relate dengan kehidupan sehari-hari, dan terasa seperti curhatan atau cerita manusia asli.',
+                'Hook FOMO': 'Buat opening (1-3 detik pertama) yang memancing rasa takut ketinggalan tren, takut kehabisan promo, atau merasa rugi jika tidak tahu info/produk ini.',
+                'Hook Problem Audience': 'Buat opening (1-3 detik pertama) yang langsung "menyerang" atau menyebutkan masalah/pain point paling mengganggu dari target audiens secara spesifik.',
+                'Hook Viral TikTok': 'Buat opening (1-3 detik pertama) ala konten TikTok viral: sangat singkat, punchy, to-the-point, energik, dan langsung bertindak sebagai scroll-stopper yang agresif.',
+                'Negative Hook': 'Buat opening (1-3 detik pertama) yang memancing emosi negatif seperti takut, khawatir, menyesal, atau kenyataan pahit secara realistis. Buat audiens merasa "gue banget". Contoh gaya bicara: "Banyak orang gagal bukan karena malas…", "Kesalahan kecil ini bikin hancur…", atau "Jangan heran kalau jualanmu masih gagal…". PENTING: Jaga agar tetap aman, tanpa hate speech, bullying, atau ancaman. Harus terdengar sangat natural ala creator Indonesia.'
+              };
+              const selectedHookInstruction = hookInstructions[formData.hookType] || hookInstructions['Hook Viral TikTok'];
+
+              // PREPARED SYSTEM PROMPT DENGAN GAYA BAHASA NATURAL / HUMAN-LIKE
+              const systemPrompt = `Bertindaklah sebagai public speaker, storyteller, dan voice over artist Indonesia paling natural di dunia. Tugasmu adalah membuat narasi yang terdengar 100% seperti manusia asli sedang berbicara, bukan seperti AI atau robot membaca teks.
+
+        Gunakan gaya bahasa Indonesia yang:
+        - Natural, santai, dan mengalir
+        - Emosional dan penuh ekspresi
+        - Relate dengan cara bicara content creator viral
+        - Tidak kaku dan tidak terlalu formal
+        - Memiliki ritme naik turun seperti manusia asli
+        - Ada jeda alami dan penekanan emosi
+        - Enak didengar untuk TikTok, Reels, dan Shorts
+
+        Saat membuat narasi:
+        - Gunakan hook yang langsung menghentikan scroll
+        - Bangun rasa penasaran di setiap kalimat
+        - Gunakan storytelling yang terasa nyata
+        - Tambahkan emosi secara bertahap
+        - Buat penonton betah sampai akhir
+        - Gunakan transisi natural antar kalimat
+        - Hindari kalimat monoton dan terlalu baku
+
+        Gunakan gaya bicara seperti:
+        "nah..."
+        "coba bayangin..."
+        "dan yang bikin kaget..."
+        "parahnya lagi..."
+        "sebentar... ini belum selesai..."
+        "gak nyangka kan?"
+        "ternyata..."
+        "jujur..."
+        "demi apa..."
+        "seriusan deh..."
+
+        PENTING UNTUK NARASI:
+        Narasi harus terdengar seperti manusia asli yang sedang ngobrol di depan kamera atau melakukan voice over profesional. Jangan terdengar seperti announcer berita, Google Translate, atau AI membaca teks. Buat senatural mungkin seperti content creator besar Indonesia. 
+        Sesuaikan emosi berdasarkan jenis konten: Motivasi (semangat & meyakinkan), Storytelling (santai & emosional), Horor (pelan & menegangkan), Affiliate/jualan (antusias tapi tetap natural). 
+        Tambahkan intonasi manusia asli, emotional pacing, natural pause, human conversational tone, dan flow bicara realistis.
+        Output harus sangat natural saat dijadikan voice over AI, tidak terdengar robotik, tidak monoton, memiliki feel creator viral profesional, dan enak didengar dari awal sampai akhir.
+
+        INFO PRODUK (WAJIB DIPAHAMI):
+        - Nama Produk: "${formData.name}"
+        - Deskripsi: "${formData.description}"
+        - Hasil script HARUS relevan dengan produk nyata yang ada di gambar.
+
+        FORMAT SKRIP WAJIB UNTUK SCENE (SANGAT PENTING!):
+        Kamu HARUS menyusun setiap adegan dari awal sampai akhir persis mengikuti alur dari FORMAT STRUKTUR yang dipilih user.
+        Gunakan tag EXACTLY seperti di bawah ini untuk setiap bagian, TANPA TERKECUALI:
+
+        [BAGIAN] (Tulis nama bagian secara spesifik sesuai format yang dipilih)
+        [SCENE] Detik X-Y
+        [VISUAL] (Deskripsikan arahan kamera, teks di layar, atau produk yang harus direkam)
+        [NARASI] "(Teks ucapan/voice over kreator, diapit tanda kutip. PASTIKAN GAYA BAHASA NATURAL DI ATAS DITERAPKAN DI SINI!)"
+
+        Gunakan format [BAGIAN], [SCENE], [VISUAL], dan [NARASI] berulang-ulang untuk seluruh scene! DILARANG pakai format tabel.
+        Pastikan kamu mengenali produk dari gambar yang diunggah!
+
+        PENTING - DI AKHIR SKRIP, KAMU WAJIB MENAMBAHKAN 2 BAGIAN INI SECARA PERSIS:
+        [CAPTION]
+        (Tulis caption TikTok/Reels yang engaging, relevan dengan angle narasi, gunakan emoji, dan arahkan penonton untuk klik keranjang kuning/link)
+
+        [HASHTAGS]
+        (Tulis 5-15 hashtag yang sangat relevan dengan produk dan tren FYP, pisahkan dengan spasi, contoh: #skincare #fyp #racuntiktok)`;
+
+              // Definisi User Prompt
+              const userPrompt = `TOLONG BUAT SKRIP DENGAN MEMATUHI PARAMETER BERIKUT INI SECARA STRICT:
+
+        1. GAYA BAHASA / TONE: ${formData.style}
+        (PENTING: Sesuaikan nada bicaranya. Jika Hard Selling, buat penawaran yang langsung & agresif. Jika Storytelling, gunakan alur cerita. Jika Funny, masukkan komedi/jokes, dsb)
+
+        2. FORMAT STRUKTUR: ${formData.format}
+        (SANGAT PENTING: Kamu WAJIB membagi skrip ini menjadi tahapan-tahapan yang merepresentasikan struktur "${formData.format}". Jangan melenceng dari urutan ini! Setiap tahapan HARUS diawali dengan tag [BAGIAN] sesuai tahapan tersebut!)
+
+        3. TIPE HOOK: ${formData.hookType}
+        (ATURAN HOOK WAJIB: ${selectedHookInstruction} Pastikan hook ini terasa natural, gaya creator Indonesia, dan langsung nyambung dengan masalah/topik produk!)
+
+        4. TARGET AUDIENS: ${formData.audience}
+        (Gunakan sapaan, bahasa gaul, dan angkat masalah yang paling relevan dengan audiens ini)
+
+        5. PLATFORM KONTEN: ${formData.platform}
+        (Sesuaikan gaya video dengan kebiasaan/tren di platform ini)
+
+        6. TARGET DURASI: ${formData.duration} detik
+        (ATURAN KERAS: Total keseluruhan kata narasi (Voice Over) TIDAK BOLEH LEBIH DARI ${maxWords} kata! Pastikan ketika dibaca dengan tempo normal, script selesai tepat dalam waktu ${formData.duration} detik. Atur durasi tiap [SCENE] seakurat mungkin.)
+
+        7. METADATA TAMBAHAN
+        (Wajib sertakan [CAPTION] dan [HASHTAGS] di baris paling bawah)
+
+        Silakan buat skripnya sekarang!`;
+
+              // Extract base64 data correctly
+              const base64Data = image.url.split(',')[1];
+              const mimeType = image.mimeType;
+
+              const payload = {
+                contents: [
+                  {
+                    role: "user",
+                    parts: [
+                      { text: userPrompt },
+                      {
+                        inlineData: {
+                          mimeType: mimeType,
+                          data: base64Data
+                        }
+                      }
+                    ]
+                  }
+                ],
+                systemInstruction: {
+                  parts: [{ text: systemPrompt }]
+                },
+              };
+
+              const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+
+              if (!response.ok) {
+                const errData = await response.json();
+                console.error("Detail Error API:", errData);
+                throw new Error(errData.error?.message || "Gagal menghubungi server Gemini API.");
+              }
+
+              const result = await response.json();
+
+              if (result.candidates && result.candidates.length > 0 && result.candidates[0].content?.parts?.length > 0) {
+                console.log("Gemini Live Response Success!");
+                const generatedText = result.candidates[0].content.parts[0].text;
+                setScriptResult(generatedText);
+                
+                // Memicu fungsi Voice Over secara otomatis menggunakan teks narasi yang disaring
+                const narasiText = extractNarasiText(generatedText);
+                if (narasiText) {
+                  generateVoiceOver(narasiText);
+                }
+
+              } else {
+                console.error("Format Data:", result);
+                throw new Error("Gagal menghasilkan skrip. Format respons dari server AI tidak sesuai.");
+              }
+
+            } catch (error) {
+              console.error("GEMINI API ERROR:", error);
+              const errorMessage = error.message || "Gagal membuat skrip akibat kesalahan jaringan.";
+              setErrors({ api: errorMessage });
+              showToast("❌ " + errorMessage);
+            } finally {
+              setIsGenerating(false);
+            }
+          };
+
+          const copyToClipboard = () => {
+            navigator.clipboard.writeText(mainScriptText);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+          };
+
+          const copyCaption = () => {
+            if (!captionText && !hashtagsText) return;
+            navigator.clipboard.writeText(`${captionText}\n\n${hashtagsText}`);
+            setIsCaptionCopied(true);
+            setTimeout(() => setIsCaptionCopied(false), 2000);
+          };
+
+          return (
+            <div className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.15),rgba(255,255,255,0))] pb-20">
+              
+              {/* Navbar Minimal */}
+              <nav className="border-b border-slate-800/50 bg-slate-950/50 backdrop-blur-xl sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
+                    <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-1.5 rounded-lg">
+                      <Zap className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                      ScriptGen AI
+                    </span>
+                  </div>
+                  <Button variant="ghost" onClick={onBack} size="sm" className="text-sm">
+                    Kembali ke Beranda
+                  </Button>
+                </div>
+              </nav>
+
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  
+                  {/* LEFT PANEL: INPUT FORM */}
+                  <div className="lg:col-span-5 space-y-6">
+                    <div className="bg-slate-900/40 backdrop-blur-xl border border-slate-800/60 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500"></div>
+                      
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-purple-500/10 rounded-lg">
+                          <Target className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <h2 className="text-xl font-bold text-white">Konfigurasi Produk</h2>
+                      </div>
+
+                      <div className="space-y-5">
+                        <ImageUploader image={image} setImage={setImage} error={errors.image} />
+                        
+                        {/* AUTO DETECT SECTION */}
+                        <div className="bg-slate-800/30 border border-purple-500/20 rounded-2xl p-4 space-y-4">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                            <label className="text-sm font-semibold text-purple-300">Asisten AI: Deteksi Otomatis</label>
+                          </div>
+                          <Input 
+                            placeholder="Contoh prompt manual: Fokus sebutkan bahan aktif utamanya"
+                            value={customDetectPrompt}
+                            onChange={(e) => setCustomDetectPrompt(e.target.value)}
+                          />
+                          <Button 
+                            variant="secondary" 
+                            className="w-full border-purple-500/30 hover:border-purple-500 text-purple-300 bg-purple-500/5 hover:bg-purple-500/10" 
+                            onClick={handleAutoDetect}
+                            isLoading={isAutoDetecting}
+                            icon={Wand2}
+                          >
+                            {isAutoDetecting ? 'AI Sedang Menganalisis Gambar...' : 'Deteksi Nama & Deskripsi'}
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-5">
+                          <Input 
+                            label="Nama Produk" 
+                            name="name"
+                            placeholder="Contoh: Skintific Mugwort Clay Mask"
+                            value={formData.name}
+                            onChange={handleInputChange}
+                            error={errors.name}
+                          />
+                          
+                          <Textarea 
+                            label="Deskripsi / Keunggulan Produk" 
+                            name="description"
+                            placeholder="Contoh: Membersihkan pori-pori, menenangkan jerawat, mengandung niacinamide..."
+                            value={formData.description}
+                            onChange={handleInputChange}
+                            error={errors.description}
+                          />
+                        </div>
+
+                        <div className="h-px w-full bg-slate-800/60 my-6"></div>
+                        
+                        <div className="flex items-center gap-3 mb-4">
+                           <div className="p-2 bg-pink-500/10 rounded-lg">
+                            <LayoutTemplate className="w-5 h-5 text-pink-400" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-slate-200">Angle & Format</h3>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <Select label="Gaya Konten" name="style" options={CONSTANTS.STYLES} value={formData.style} onChange={handleInputChange} />
+                          <Select label="Format" name="format" options={CONSTANTS.FORMATS} value={formData.format} onChange={handleInputChange} />
+                          <Select label="Tipe Hook" name="hookType" options={CONSTANTS.HOOKS} value={formData.hookType} onChange={handleInputChange} />
+                          <Select label="Target Audiens" name="audience" options={CONSTANTS.AUDIENCES} value={formData.audience} onChange={handleInputChange} />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 pt-4">
+                          <Select label="Platform Utama" name="platform" options={CONSTANTS.PLATFORMS} value={formData.platform} onChange={handleInputChange} />
+                          <Select label="Target Durasi (Detik)" name="duration" options={CONSTANTS.DURATIONS} value={formData.duration} onChange={handleInputChange} />
+                        </div>
+
+                        {errors.api && (
+                          <div className="p-3 mt-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-2">
+                            <X className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                            <p className="text-sm text-red-300">{errors.api}</p>
+                          </div>
+                        )}
+
+                        <Button 
+                          className="w-full mt-6 py-6 text-lg shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] h-14" 
+                          onClick={generateScript}
+                          isLoading={isGenerating}
+                          icon={Wand2}
+                        >
+                          {isGenerating ? 'AI Sedang Menganalisis Produk...' : 'Generate Skrip Viral'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT PANEL: RESULT */}
+                  <div className="lg:col-span-7">
+                    <div className={`h-full min-h-[600px] bg-slate-900/40 backdrop-blur-xl border p-6 rounded-3xl shadow-2xl relative transition-all duration-500 flex flex-col
+                      ${scriptResult || isGenerating ? 'border-purple-500/30' : 'border-slate-800/60 items-center justify-center text-center'}
+                    `}>
+                      
+                      {!scriptResult && !isGenerating ? (
+                        // Empty State
+                        <div className="max-w-md mx-auto space-y-4 opacity-60 flex flex-col items-center">
+                          <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <Video className="w-8 h-8 text-slate-500" />
+                          </div>
+                          <h3 className="text-xl font-medium text-slate-300">Belum Ada Skrip</h3>
+                          <p className="text-slate-400 text-sm leading-relaxed text-center">
+                            Unggah foto produk Anda di panel sebelah kiri, atur preferensi, lalu klik generate untuk melihat keajaiban AI bekerja merangkai kata.
+                          </p>
+                        </div>
+                      ) : isGenerating ? (
+                        // Loading State
+                        <div className="flex-1 flex flex-col items-center justify-center space-y-6">
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-purple-500 blur-xl opacity-30 animate-pulse rounded-full"></div>
+                            <Loader2 className="w-12 h-12 text-purple-400 animate-spin relative z-10" />
+                          </div>
+                          <div className="space-y-2 text-center">
+                             <p className="text-lg font-medium text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 animate-pulse">
+                              Memindai gambar produk...
+                            </p>
+                            <p className="text-sm text-slate-400">Merangkai hook, menyusun narasi, dan menyiapkan call-to-action.</p>
+                          </div>
+                        </div>
+                      ) : (
+                        // Result State
+                        <div className="flex flex-col h-full">
+                          <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="w-5 h-5 text-yellow-400" />
+                              <h3 className="text-lg font-semibold text-white">Hasil Skrip AI</h3>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button variant="secondary" size="sm" onClick={generateScript} disabled={isTyping} icon={RefreshCw}>
+                                Generate Ulang
+                              </Button>
+                              <Button 
+                                variant={isCopied ? "secondary" : "primary"} 
+                                size="sm" 
+                                onClick={copyToClipboard} 
+                                className={isCopied ? "text-green-400 border-green-500/30 bg-green-500/10" : ""}
+                                icon={isCopied ? CheckCircle2 : Copy}
+                              >
+                                {isCopied ? 'Tersalin!' : 'Salin Skrip'}
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {/* Metadata Configuration Tags */}
+                          {usedConfig && (
+                            <div className="flex flex-wrap gap-2 mb-5 p-3 bg-slate-900/50 border border-slate-700/50 rounded-xl">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-300 text-xs font-medium border border-purple-500/20">
+                                🎭 Gaya: {usedConfig.style}
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-pink-500/10 text-pink-300 text-xs font-medium border border-pink-500/20">
+                                📋 Format: {usedConfig.format}
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/10 text-red-300 text-xs font-medium border border-red-500/20">
+                                🪝 Hook: {usedConfig.hookType}
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-300 text-xs font-medium border border-blue-500/20">
+                                🎯 Audiens: {usedConfig.audience}
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-500/10 text-orange-300 text-xs font-medium border border-orange-500/20">
+                                📱 {usedConfig.platform}
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 text-xs font-medium border border-emerald-500/20">
+                                ⏱️ Durasi: {usedConfig.duration} Detik
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Voice Over Audio Player */}
+                          {(audioUrl || isAudioGenerating) && (
+                            <div className="mb-6 p-4 bg-slate-800/40 border border-slate-700/60 rounded-2xl flex flex-col gap-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Volume2 className="w-5 h-5 text-purple-400" />
+                                  <span className="text-sm font-semibold text-slate-200">Voice Over Narasi (Kore)</span>
+                                </div>
+                                {audioUrl && !isAudioGenerating && (
+                                  <a
+                                    href={audioUrl}
+                                    download={`VoiceOver_${formData.name ? formData.name.replace(/\s+/g, '_') : 'Skrip'}.wav`}
+                                    className="flex items-center space-x-1.5 px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg text-xs font-bold transition-colors border border-purple-500/30"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                    <span>Unduh</span>
+                                  </a>
+                                )}
+                              </div>
+                              
+                              {isAudioGenerating ? (
+                                <div className="flex items-center gap-3 px-2 py-3">
+                                  <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                                  <span className="text-sm text-slate-400 animate-pulse">Merender audio suara...</span>
+                                </div>
+                              ) : audioUrl ? (
+                                <audio controls className="w-full h-12 outline-none rounded-lg custom-audio" src={audioUrl}>
+                                  Browser Anda tidak mendukung elemen audio.
+                                </audio>
+                              ) : null}
+                            </div>
+                          )}
+
+                          {/* Script Content Area */}
+                          <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar text-left">
+                            <div 
+                              className="prose prose-invert prose-p:text-slate-300 prose-headings:text-white max-w-none pb-4"
+                              dangerouslySetInnerHTML={{ __html: parseMarkdown(displayedText) }}
+                            />
+                            {isTyping && <span className="inline-block w-2 h-5 bg-purple-500 animate-pulse ml-1 align-middle mb-4"></span>}
+                            
+                            {/* Caption & Hashtags Section */}
+                            {(captionText || hashtagsText) && !isTyping && (
+                              <div className="mt-6 border-t border-slate-800/60 pt-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <LayoutTemplate className="w-5 h-5 text-orange-400" />
+                                    <h3 className="text-md font-semibold text-white">Caption & Hashtags</h3>
+                                  </div>
+                                  <Button 
+                                    variant="secondary" 
+                                    size="sm" 
+                                    onClick={copyCaption} 
+                                    className={isCaptionCopied ? "text-green-400 border-green-500/30 bg-green-500/10" : "text-slate-300"}
+                                    icon={isCaptionCopied ? CheckCircle2 : Copy}
+                                  >
+                                    {isCaptionCopied ? 'Tersalin!' : 'Salin Caption'}
+                                  </Button>
+                                </div>
+                                
+                                <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 space-y-3">
+                                  {captionText && (
+                                    <p className="text-sm text-slate-300 whitespace-pre-wrap">{captionText}</p>
+                                  )}
+                                  {hashtagsText && (
+                                    <p className="text-sm font-medium text-blue-400 whitespace-pre-wrap">{hashtagsText}</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Toast Notification */}
+              {toastMessage && (
+                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+                  <div className="bg-slate-800 border border-slate-700 shadow-2xl rounded-xl px-4 py-3 flex items-center gap-3 backdrop-blur-xl">
+                    <p className="text-sm font-medium text-white">{toastMessage}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        const LandingView = ({ onStart }) => {
+          return (
+            <div className="relative min-h-screen bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+              {/* Abstract Background Elements */}
+              <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full mix-blend-screen filter blur-[100px] animate-pulse"></div>
+              <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-600/20 rounded-full mix-blend-screen filter blur-[100px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+CjxyZWN0IHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0ibm9uZSIvPgo8Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMDUpIi8+Cjwvc3ZnPg==')] opacity-50 z-0"></div>
+
+              <div className="relative z-10 text-center px-4 max-w-4xl mx-auto space-y-8">
+                
+                {/* Badge */}
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-purple-500/30 bg-purple-500/10 backdrop-blur-md text-sm font-medium text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)] mb-4">
+                  <Sparkles className="w-4 h-4" />
+                  Powered by Gemini Vision AI
+                </div>
+
+                {/* Headline */}
+                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
+                  Ubah Foto Produk Jadi <br/>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-orange-400 filter drop-shadow-[0_0_20px_rgba(236,72,153,0.3)]">
+                    Skrip Viral
+                  </span> Otomatis
+                </h1>
+
+                {/* Subheadline */}
+                <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+                  Tinggalkan cara manual. Unggah foto produk, pilih gaya bahasa, dan biarkan AI merangkai Hook, Narasi, hingga CTA yang dijamin bikin audiens berhenti scroll.
+                </p>
+
+                {/* CTA Button */}
+                <div className="pt-8">
+                  <button 
+                    onClick={onStart}
+                    className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-300 ease-out bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl hover:scale-105 hover:shadow-[0_0_40px_rgba(219,39,119,0.5)] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-950 overflow-hidden"
+                  >
+                    <span className="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></span>
+                    <span className="relative flex items-center gap-2">
+                      Mulai Generate Sekarang
+                      <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                  </button>
+                </div>
+
+                {/* Features minimal */}
+                <div className="pt-16 grid grid-cols-1 md:grid-cols-3 gap-6 text-left opacity-80">
+                  <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800/50 backdrop-blur-sm">
+                    <ImageIcon className="w-6 h-6 text-purple-400 mb-3" />
+                    <h4 className="font-semibold text-white mb-1">Image Recognition</h4>
+                    <p className="text-sm text-slate-400">AI otomatis mengenali detail produk dari foto yang diunggah.</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800/50 backdrop-blur-sm">
+                    <Zap className="w-6 h-6 text-pink-400 mb-3" />
+                    <h4 className="font-semibold text-white mb-1">Scroll-Stopping Hook</h4>
+                    <p className="text-sm text-slate-400">Dirancang khusus dengan framework marketing untuk menahan audiens.</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-900/50 border border-slate-800/50 backdrop-blur-sm">
+                    <LayoutTemplate className="w-6 h-6 text-orange-400 mb-3" />
+                    <h4 className="font-semibold text-white mb-1">Siap Produksi</h4>
+                    <p className="text-sm text-slate-400">Lengkap dengan arahan visual, audio, caption, dan hashtag.</p>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          );
+        };
+
+        const App = () => {
+          const [currentView, setCurrentView] = useState('landing');
+
+          return (
+            <div className="font-sans antialiased text-slate-50 selection:bg-purple-500/30">
+              {currentView === 'landing' ? (
+                <LandingView onStart={() => setCurrentView('generator')} />
+              ) : (
+                <GeneratorView onBack={() => setCurrentView('landing')} />
+              )}
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
